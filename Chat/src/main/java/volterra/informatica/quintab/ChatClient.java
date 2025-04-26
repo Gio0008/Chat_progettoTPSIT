@@ -20,18 +20,54 @@ public class ChatClient {
         ) {
             System.out.println("Connesso al server!");
 
-            // Ricezione della chiave pubblica del server
+            // Ricezione chiave pubblica
             String pubKeyBase64 = in.readLine();
             byte[] keyBytes = Base64.getDecoder().decode(pubKeyBase64);
             KeyFactory keyFactory = KeyFactory.getInstance("RSA");
             PublicKey serverPublicKey = keyFactory.generatePublic(new X509EncodedKeySpec(keyBytes));
 
-            // Ciclo di invio messaggi cifrati
+            // Autenticazione
+            boolean authenticated = false;
+            while (!authenticated) {
+                System.out.println("Scegli un'opzione:");
+                System.out.println("1. Registrati");
+                System.out.println("2. Login");
+                String choice = keyboard.readLine();
+
+                System.out.print("Username (no spazi): ");
+                String username = keyboard.readLine().trim().replaceAll("\\s+", "");
+
+                System.out.print("Password (no spazi): ");
+                String password = keyboard.readLine().trim().replaceAll("\\s+", "");
+
+                String command;
+                if (choice.equals("1")) {
+                    command = "REGISTER " + username + " " + password;
+                } else if (choice.equals("2")) {
+                    command = "LOGIN " + username + " " + password;
+                } else {
+                    System.out.println("Scelta non valida!");
+                    continue;
+                }
+
+                // Invia comando cifrato
+                String encrypted = encryptRSA(command, serverPublicKey);
+                out.println(encrypted);
+
+                // Ricevi risposta
+                String response = in.readLine();
+                System.out.println("Server: " + response);
+                if (response != null && response.startsWith("SUCCESS")) {
+                    authenticated = true;
+                }
+            }
+
+            // Ciclo di chat
+            System.out.println("Benvenuto nella chat! Scrivi i tuoi messaggi:");
             String input;
             while ((input = keyboard.readLine()) != null) {
                 String encrypted = encryptRSA(input, serverPublicKey);
                 out.println(encrypted);
-
                 String response = in.readLine();
                 System.out.println("Server: " + response);
             }

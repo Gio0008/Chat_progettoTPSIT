@@ -2,6 +2,11 @@ package volterra.informatica.quintab;
 
 import java.io.*;
 import java.net.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.security.*;
 import javax.crypto.Cipher;
 import java.util.Base64;
@@ -11,6 +16,7 @@ public class ClientHandler implements Runnable {
     private BufferedReader in;
     private PrintWriter out;
     private KeyPair keyPair;
+    private boolean authenticated = false;
 
     public ClientHandler(Socket socket, KeyPair keyPair) {
         this.socket = socket;
@@ -23,15 +29,60 @@ public class ClientHandler implements Runnable {
             in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             out = new PrintWriter(socket.getOutputStream(), true);
 
-            // Invia la chiave pubblica al client
+            // Invia chiave pubblica
             String encodedPubKey = Base64.getEncoder().encodeToString(keyPair.getPublic().getEncoded());
             out.println(encodedPubKey);
 
-            // Ricevi e decifra messaggi
+            // Gestione autenticazione
+            String encryptedAuth = in.readLine();
+            if (encryptedAuth == null) return;
+
+            String decryptedAuth = decryptRSA(encryptedAuth, keyPair.getPrivate());
+            String[] parts = decryptedAuth.split(" ", 3);
+            if (parts.length != 3 || parts[1].contains(":") || parts[2].contains(":")) {
+                out.println("ERRORE: Formato non valido. Usa solo caratteri consentiti");
+                return;
+            }
+
+            String cmd = parts[0];
+            String username = parts[1];
+            String password = parts[2];
+
+            synchronized (this.getClass()) {
+                if (cmd.equals("REGISTER")) {
+                    if (checkUserExists(username)) {
+                        out.println("ERRORE: Utente già esistente");
+                    } else if (saveUser(username, hashPassword(password))) {
+                        out.println("SUCCESS: Registrazione completata");
+                        authenticated = true;
+                    } else {
+                        out.println("ERRORE: Registrazione fallita");
+                    }
+                } else if (cmd.equals("LOGIN")) {
+                    String storedHash = getStoredHash(username);
+                    if (storedHash == null) {
+                        out.println("ERRORE: Utente non trovato");
+                    } else if (storedHash.equals(hashPassword(password))) {
+                        out.println("SUCCESS: Login effettuato");
+                        authenticated = true;
+                    } else {
+                        out.println("ERRORE: Password errata");
+                    }
+                } else {
+                    out.println("ERRORE: Comando non riconosciuto");
+                }
+            }
+
+            if (!authenticated) {
+                socket.close();
+                return;
+            }
+
+            // Ciclo messaggi normali
             String encrypted;
             while ((encrypted = in.readLine()) != null) {
                 String decrypted = decryptRSA(encrypted, keyPair.getPrivate());
-                System.out.println("Messaggio ricevuto (decifrato): " + decrypted);
+                System.out.println("Messaggio ricevuto da " + username + ": " + decrypted);
                 out.println("Ricevuto: " + decrypted);
             }
 
@@ -49,5 +100,59 @@ public class ClientHandler implements Runnable {
         Cipher decryptCipher = Cipher.getInstance("RSA");
         decryptCipher.init(Cipher.DECRYPT_MODE, privateKey);
         return new String(decryptCipher.doFinal(bytes));
+    }
+
+    private boolean checkUserExists(String username) {
+        if (!Files.exists(USERS_FILE)) return false;
+        
+        try {
+            return Files.lines(USERS_FILE)
+                .anyMatch(line -> line.startsWith(username + ":"));
+        } catch (IOException e) {
+            System.err.println("Errore lettura utenti: " + e.getMessage());
+            return false;
+        }
+    }
+
+    private static final Path USERS_FILE = Paths.get("users.txt");
+
+    private boolean saveUser(String username, String hash) {
+        try {
+            Files.write(
+                USERS_FILE, 
+                (username + ":" + hash + "\n").getBytes(StandardCharsets.UTF_8), 
+                StandardOpenOption.CREATE, 
+                StandardOpenOption.APPEND
+            );
+            return true;
+        } catch (IOException e) {
+            System.err.println("Errore salvataggio utente: " + e.getMessage());
+            return false;
+        }
+    }
+
+    private String getStoredHash(String username) {
+        if (!Files.exists(USERS_FILE)) return null;
+        
+        try {
+            return Files.lines(USERS_FILE)
+                .filter(line -> line.startsWith(username + ":"))
+                .map(line -> line.split(":")[1])
+                .findFirst()
+                .orElse(null);
+        } catch (IOException e) {
+            System.err.println("Errore lettura hash: " + e.getMessage());
+            return null;
+        }
+    }
+
+    private String hashPassword(String password) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] hash = md.digest(password.getBytes());
+            return Base64.getEncoder().encodeToString(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
