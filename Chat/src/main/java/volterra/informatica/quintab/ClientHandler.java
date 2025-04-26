@@ -16,7 +16,7 @@ public class ClientHandler implements Runnable {
     private KeyPair keyPair;
     private boolean authenticated = false;
     private String username;
-    private String currentRoom = "lobby"; // di default
+    private String currentRoom = "lobby";
 
     public ClientHandler(Socket socket, KeyPair keyPair) {
         this.socket = socket;
@@ -84,11 +84,39 @@ public class ClientHandler implements Runnable {
                 Message msg = gson.fromJson(decrypted, Message.class);
 
                 if (msg.getText().startsWith("/join ")) {
-                    String roomName = msg.getText().substring(6).trim();
-                    currentRoom = roomName;
-                    out.println("✅ Entrato nella stanza: " + roomName);
+                    String[] split = msg.getText().substring(6).split(" ", 2);
+                    String roomName = split[0].trim();
+                
+                    if (roomName.equalsIgnoreCase("lobby")) {
+                        currentRoom = "lobby";
+                        out.println("✅ Sei tornato nella lobby!");
+                        continue;
+                    }
+                
+                    if (split.length < 2) {
+                        out.println("❌ Devi specificare anche la password! Esempio: /join nome password");
+                        continue;
+                    }
+                
+                    String roomPassword = split[1].trim(); 
+                
+                    synchronized (ChatServer.roomPasswords) {
+                        if (ChatServer.roomPasswords.containsKey(roomName)) {
+                            if (ChatServer.roomPasswords.get(roomName).equals(roomPassword)) {
+                                currentRoom = roomName;
+                                out.println("✅ Accesso alla stanza '" + roomName + "' riuscito!");
+                            } else {
+                                out.println("❌ Password errata per la stanza '" + roomName + "'.");
+                            }
+                        } else {
+                            ChatServer.roomPasswords.put(roomName, roomPassword);
+                            currentRoom = roomName;
+                            out.println("✅ Stanza '" + roomName + "' creata e accesso effettuato!");
+                        }
+                    }
                     continue;
                 }
+                
 
                 if (msg.getText().startsWith("/pm ")) {
                     String[] split = msg.getText().substring(4).split(" ", 2);
@@ -101,6 +129,22 @@ public class ClientHandler implements Runnable {
                     }
                     continue;
                 }
+
+                if (msg.getText().equals("/stanze")) {
+                    listRooms();
+                    continue;
+                }
+
+                if (msg.getText().equals("/utenti")) {
+                    listUsersInSameRoom();
+                    continue;
+                }
+                
+                if (msg.getText().equals("/utentionline")) {
+                    listAllOnlineUsers();
+                    continue;
+                }
+                
 
                 System.out.println("[" + msg.getUsername() + " @" + currentRoom + "]: " + msg.getText());
                 broadcastMessage(msg);
@@ -221,4 +265,36 @@ public class ClientHandler implements Runnable {
     public String getCurrentRoom() {
         return currentRoom;
     }
+
+    private void listRooms() {
+        out.println("📜 Stanze disponibili:");
+        synchronized (ChatServer.roomPasswords) {
+            if (ChatServer.roomPasswords.isEmpty()) {
+                out.println("- Nessuna stanza creata. Solo la lobby è disponibile.");
+                return;
+            }
+            for (String room : ChatServer.roomPasswords.keySet()) {
+                out.println("- " + room);
+            }
+        }
+    }
+
+    private void listUsersInSameRoom() {
+        out.println("👥 Utenti nella stanza '" + currentRoom + "':");
+        for (ClientHandler client : ChatServer.clients) {
+            if (client.isAuthenticated() && client.getCurrentRoom().equals(this.currentRoom)) {
+                out.println("- " + client.username);
+            }
+        }
+    }
+    
+    private void listAllOnlineUsers() {
+        out.println("🌎 Tutti gli utenti online:");
+        for (ClientHandler client : ChatServer.clients) {
+            if (client.isAuthenticated()) {
+                out.println("- " + client.username + " (stanza: " + client.getCurrentRoom() + ")");
+            }
+        }
+    }    
+    
 }

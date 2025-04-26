@@ -6,13 +6,16 @@ import java.util.concurrent.*;
 import java.security.*;
 import java.util.Base64;
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 
 public class ChatServer {
     private static final int PORT = 1234;
     private static ExecutorService pool = Executors.newFixedThreadPool(50);
     public static KeyPair keyPair;
     public static List<ClientHandler> clients = new CopyOnWriteArrayList<>();
+    public static Map<String, String> roomPasswords = new ConcurrentHashMap<>();
 
     public static void main(String[] args) {
         System.out.println("Server avviato... Generazione chiavi RSA...");
