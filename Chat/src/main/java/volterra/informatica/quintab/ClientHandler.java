@@ -1,5 +1,5 @@
 package volterra.informatica.quintab;
-
+// ClientHandler.java
 import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
@@ -89,7 +89,11 @@ public class ClientHandler implements Runnable {
 
                 System.out.println("[" + msg.getUsername() + " @ " + new java.util.Date(msg.getTimestamp()) + "] dice: " + msg.getText());
                 out.println("Ricevuto messaggio da " + msg.getUsername());
+
+                // Salva messaggio su file JSON
+                saveMessageToFile(msg);
             }
+
 
         } catch (Exception e) {
             System.err.println("Errore connessione client: " + e.getMessage());
@@ -159,4 +163,21 @@ public class ClientHandler implements Runnable {
             throw new RuntimeException(e);
         }
     }
+
+    private void saveMessageToFile(Message msg) {
+        try {
+            Gson gson = new Gson();
+            String filename = "chat_" + msg.getUsername() + ".json";
+            Path path = Paths.get(filename);
+    
+            String jsonMessage = gson.toJson(msg) + "\n";
+    
+            Files.write(path, jsonMessage.getBytes(StandardCharsets.UTF_8),
+                StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+    
+        } catch (IOException e) {
+            System.err.println("Errore salvataggio chat: " + e.getMessage());
+        }
+    }
+    
 }

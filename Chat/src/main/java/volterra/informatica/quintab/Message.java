@@ -1,5 +1,5 @@
 package volterra.informatica.quintab;
-
+// Message.java
 public class Message {
     private String username;
     private String text;
