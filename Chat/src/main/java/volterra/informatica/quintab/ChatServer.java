@@ -5,11 +5,15 @@ import java.io.*;
 import java.util.concurrent.*;
 import java.security.*;
 import java.util.Base64;
+import java.util.List;
 
 public class ChatServer {
     private static final int PORT = 1234;
     private static ExecutorService pool = Executors.newFixedThreadPool(50);
     public static KeyPair keyPair;
+
+    //LIsta degli utenti
+    public static List<ClientHandler> clients = new CopyOnWriteArrayList<>();
 
     public static void main(String[] args) {
         System.out.println("Server avviato... Generazione chiavi RSA...");
@@ -23,6 +27,7 @@ public class ChatServer {
                     System.out.println("Nuovo client connesso: " + clientSocket.getInetAddress());
 
                     ClientHandler handler = new ClientHandler(clientSocket, keyPair);
+                    clients.add(handler);
                     pool.execute(handler);
                 }
             }

@@ -88,10 +88,9 @@ public class ClientHandler implements Runnable {
                 Message msg = gson.fromJson(decrypted, Message.class);
 
                 System.out.println("[" + msg.getUsername() + " @ " + new java.util.Date(msg.getTimestamp()) + "] dice: " + msg.getText());
-                out.println("Ricevuto messaggio da " + msg.getUsername());
 
-                // Salva messaggio su file JSON
-                saveMessageToFile(msg);
+                // Invia il messaggio a TUTTI i client collegati
+                broadcastMessage(msg);
             }
 
 
@@ -179,5 +178,24 @@ public class ClientHandler implements Runnable {
             System.err.println("Errore salvataggio chat: " + e.getMessage());
         }
     }
+
+    private void broadcastMessage(Message msg) {
+        Gson gson = new Gson();
+        String json = gson.toJson(msg);
+    
+        for (ClientHandler client : ChatServer.clients) {
+            if (client != this && client.isAuthenticated()) { // non rimandare a sé stesso
+                client.sendMessage(json);
+            }
+        }
+    }
+    
+    public boolean isAuthenticated() {
+        return authenticated;
+    }
+    
+    public void sendMessage(String json) {
+        out.println(json);
+    }    
     
 }
