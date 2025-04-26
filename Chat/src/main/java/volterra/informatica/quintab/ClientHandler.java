@@ -10,6 +10,7 @@ import java.nio.file.StandardOpenOption;
 import java.security.*;
 import javax.crypto.Cipher;
 import java.util.Base64;
+import com.google.gson.Gson; 
 
 public class ClientHandler implements Runnable {
     private Socket socket;
@@ -17,6 +18,7 @@ public class ClientHandler implements Runnable {
     private PrintWriter out;
     private KeyPair keyPair;
     private boolean authenticated = false;
+    private String username; 
 
     public ClientHandler(Socket socket, KeyPair keyPair) {
         this.socket = socket;
@@ -45,7 +47,7 @@ public class ClientHandler implements Runnable {
             }
 
             String cmd = parts[0];
-            String username = parts[1];
+            username = parts[1];
             String password = parts[2];
 
             synchronized (this.getClass()) {
@@ -79,11 +81,14 @@ public class ClientHandler implements Runnable {
             }
 
             // Ciclo messaggi normali
+            Gson gson = new Gson();
             String encrypted;
             while ((encrypted = in.readLine()) != null) {
                 String decrypted = decryptRSA(encrypted, keyPair.getPrivate());
-                System.out.println("Messaggio ricevuto da " + username + ": " + decrypted);
-                out.println("Ricevuto: " + decrypted);
+                Message msg = gson.fromJson(decrypted, Message.class);
+
+                System.out.println("[" + msg.getUsername() + " @ " + new java.util.Date(msg.getTimestamp()) + "] dice: " + msg.getText());
+                out.println("Ricevuto messaggio da " + msg.getUsername());
             }
 
         } catch (Exception e) {
@@ -102,9 +107,11 @@ public class ClientHandler implements Runnable {
         return new String(decryptCipher.doFinal(bytes));
     }
 
+    // metodi utenti
+    private static final Path USERS_FILE = Paths.get("users.txt");
+
     private boolean checkUserExists(String username) {
         if (!Files.exists(USERS_FILE)) return false;
-        
         try {
             return Files.lines(USERS_FILE)
                 .anyMatch(line -> line.startsWith(username + ":"));
@@ -113,8 +120,6 @@ public class ClientHandler implements Runnable {
             return false;
         }
     }
-
-    private static final Path USERS_FILE = Paths.get("users.txt");
 
     private boolean saveUser(String username, String hash) {
         try {
@@ -133,7 +138,6 @@ public class ClientHandler implements Runnable {
 
     private String getStoredHash(String username) {
         if (!Files.exists(USERS_FILE)) return null;
-        
         try {
             return Files.lines(USERS_FILE)
                 .filter(line -> line.startsWith(username + ":"))

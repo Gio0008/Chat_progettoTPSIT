@@ -6,10 +6,12 @@ import java.security.*;
 import java.security.spec.*;
 import java.util.Base64;
 import javax.crypto.Cipher;
+import com.google.gson.Gson;
 
 public class ChatClient {
     private static final String HOST = "localhost";
     private static final int PORT = 1234;
+    private static String username; 
 
     public static void main(String[] args) {
         try (
@@ -35,7 +37,7 @@ public class ChatClient {
                 String choice = keyboard.readLine();
 
                 System.out.print("Username (no spazi): ");
-                String username = keyboard.readLine().trim().replaceAll("\\s+", "");
+                username = keyboard.readLine().trim().replaceAll("\\s+", ""); 
 
                 System.out.print("Password (no spazi): ");
                 String password = keyboard.readLine().trim().replaceAll("\\s+", "");
@@ -64,10 +66,15 @@ public class ChatClient {
 
             // Ciclo di chat
             System.out.println("Benvenuto nella chat! Scrivi i tuoi messaggi:");
+            Gson gson = new Gson();
             String input;
             while ((input = keyboard.readLine()) != null) {
-                String encrypted = encryptRSA(input, serverPublicKey);
+                Message msg = new Message(username, input);
+                String json = gson.toJson(msg);
+
+                String encrypted = encryptRSA(json, serverPublicKey);
                 out.println(encrypted);
+
                 String response = in.readLine();
                 System.out.println("Server: " + response);
             }
