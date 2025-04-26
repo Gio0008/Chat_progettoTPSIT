@@ -11,7 +11,7 @@ import com.google.gson.Gson;
 public class ChatClient {
     private static final String HOST = "localhost";
     private static final int PORT = 1234;
-    private static String username; 
+    private static String username;
 
     public static void main(String[] args) {
         try (
@@ -37,7 +37,7 @@ public class ChatClient {
                 String choice = keyboard.readLine();
 
                 System.out.print("Username (no spazi): ");
-                username = keyboard.readLine().trim().replaceAll("\\s+", ""); 
+                username = keyboard.readLine().trim().replaceAll("\\s+", "");
 
                 System.out.print("Password (no spazi): ");
                 String password = keyboard.readLine().trim().replaceAll("\\s+", "");
@@ -52,11 +52,9 @@ public class ChatClient {
                     continue;
                 }
 
-                // Invia comando cifrato
                 String encrypted = encryptRSA(command, serverPublicKey);
                 out.println(encrypted);
 
-                // Ricevi risposta
                 String response = in.readLine();
                 System.out.println("Server: " + response);
                 if (response != null && response.startsWith("SUCCESS")) {
@@ -64,8 +62,21 @@ public class ChatClient {
                 }
             }
 
-            // Ciclo di chat
-            System.out.println("Benvenuto nella chat! Scrivi i tuoi messaggi:");
+            // 👂 Thread per ascoltare i messaggi dal server
+            Thread listener = new Thread(() -> {
+                try {
+                    String serverMsg;
+                    while ((serverMsg = in.readLine()) != null) {
+                        System.out.println("\n[Messaggio] " + serverMsg);
+                        System.out.print("> "); // per aiutare l'utente a vedere che può scrivere
+                    }
+                } catch (IOException e) {
+                    System.err.println("Connessione chiusa dal server.");
+                }
+            });
+            listener.start();
+
+            // ✍️ Thread principale legge da tastiera e manda
             Gson gson = new Gson();
             String input;
             while ((input = keyboard.readLine()) != null) {
@@ -74,9 +85,6 @@ public class ChatClient {
 
                 String encrypted = encryptRSA(json, serverPublicKey);
                 out.println(encrypted);
-
-                String response = in.readLine();
-                System.out.println("Server: " + response);
             }
 
         } catch (Exception e) {

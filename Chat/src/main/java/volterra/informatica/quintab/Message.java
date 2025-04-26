@@ -11,7 +11,6 @@ public class Message {
         this.timestamp = System.currentTimeMillis();
     }
 
-    // Getter e Setter
     public String getUsername() {
         return username;
     }
@@ -24,4 +23,3 @@ public class Message {
         return timestamp;
     }
 }
-

@@ -1,18 +1,17 @@
 package volterra.informatica.quintab;
-//ChatServer.java
+// ChatServer.java
 import java.net.*;
 import java.io.*;
 import java.util.concurrent.*;
 import java.security.*;
 import java.util.Base64;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class ChatServer {
     private static final int PORT = 1234;
     private static ExecutorService pool = Executors.newFixedThreadPool(50);
     public static KeyPair keyPair;
-
-    //LIsta degli utenti
     public static List<ClientHandler> clients = new CopyOnWriteArrayList<>();
 
     public static void main(String[] args) {
