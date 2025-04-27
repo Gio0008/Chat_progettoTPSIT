@@ -145,6 +145,17 @@ public class ClientHandler implements Runnable {
                     continue;
                 }
                 
+                if (msg.getText().equals("/esci")) {
+                    out.println("Disconnessione in corso...");
+                    // Esce dal ciclo while e chiude il socket
+                    break; 
+                }
+                
+                if (msg.getText().equals("/help")) {
+                    sendHelp();
+                    continue;
+                }
+                
 
                 System.out.println("[" + msg.getUsername() + " @" + currentRoom + "]: " + msg.getText());
                 broadcastMessage(msg);
@@ -295,6 +306,17 @@ public class ClientHandler implements Runnable {
                 out.println("- " + client.username + " (stanza: " + client.getCurrentRoom() + ")");
             }
         }
+    }    
+
+    private void sendHelp() {
+        out.println("📜 Lista comandi disponibili:");
+        out.println("/join <stanza> <password>  - Entra o crea una stanza protetta da password");
+        out.println("/pm <utente> <messaggio>   - Invia un messaggio privato");
+        out.println("/stanze                    - Elenca tutte le stanze esistenti");
+        out.println("/utenti                    - Elenca gli utenti nella tua stanza");
+        out.println("/utentionline              - Elenca tutti gli utenti online");
+        out.println("/esci                      - Disconnettiti dalla chat");
+        out.println("/help                      - Mostra questo aiuto");
     }    
     
 }
