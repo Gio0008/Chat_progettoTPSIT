@@ -90,6 +90,7 @@ public class ClientHandler implements Runnable {
                     if (roomName.equalsIgnoreCase("lobby")) {
                         currentRoom = "lobby";
                         out.println("✅ Sei tornato nella lobby!");
+                        broadcastSystemMessage(username + " è tornato nella lobby.");
                         continue;
                     }
                 
@@ -98,13 +99,14 @@ public class ClientHandler implements Runnable {
                         continue;
                     }
                 
-                    String roomPassword = split[1].trim(); 
+                    String roomPassword = split[1].trim();
                 
                     synchronized (ChatServer.roomPasswords) {
                         if (ChatServer.roomPasswords.containsKey(roomName)) {
                             if (ChatServer.roomPasswords.get(roomName).equals(roomPassword)) {
                                 currentRoom = roomName;
                                 out.println("✅ Accesso alla stanza '" + roomName + "' riuscito!");
+                                broadcastSystemMessage(username + " è entrato nella stanza.");
                             } else {
                                 out.println("❌ Password errata per la stanza '" + roomName + "'.");
                             }
@@ -112,10 +114,12 @@ public class ClientHandler implements Runnable {
                             ChatServer.roomPasswords.put(roomName, roomPassword);
                             currentRoom = roomName;
                             out.println("✅ Stanza '" + roomName + "' creata e accesso effettuato!");
+                            broadcastSystemMessage(username + " ha creato e si è unito alla stanza.");
                         }
                     }
                     continue;
                 }
+                
                 
 
                 if (msg.getText().startsWith("/pm ")) {
@@ -146,10 +150,12 @@ public class ClientHandler implements Runnable {
                 }
                 
                 if (msg.getText().equals("/esci")) {
-                    out.println("Disconnessione in corso...");
+                    broadcastSystemMessage(username + " ha lasciato la stanza.");
+                    out.println("👋 Disconnessione in corso...");
                     // Esce dal ciclo while e chiude il socket
-                    break; 
+                    break;
                 }
+                
                 
                 if (msg.getText().equals("/help")) {
                     sendHelp();
@@ -318,5 +324,17 @@ public class ClientHandler implements Runnable {
         out.println("/esci                      - Disconnettiti dalla chat");
         out.println("/help                      - Mostra questo aiuto");
     }    
+    
+    private void broadcastSystemMessage(String text) {
+        Gson gson = new Gson();
+        Message sysMsg = new Message("Sistema", text);
+        String json = gson.toJson(sysMsg);
+    
+        for (ClientHandler client : ChatServer.clients) {
+            if (client != this && client.isAuthenticated() && client.getCurrentRoom().equals(this.currentRoom)) {
+                client.sendMessage(json);
+            }
+        }
+    }
     
 }
